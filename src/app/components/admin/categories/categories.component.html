@@ -1,0 +1,202 @@
+<div class="categories-page">
+  <header class="page-header">
+    <div>
+      <div class="eyebrow">QUẢN TRỊ SẢN PHẨM</div>
+      <h1>Quản lý danh mục</h1>
+      <p>Thêm, chỉnh sửa và quản lý danh mục sản phẩm SPORTZONE.</p>
+    </div>
+    <button class="btn-primary-custom" type="button" (click)="openCreateModal()">
+      <i class="bi bi-plus-lg"></i> Thêm danh mục
+    </button>
+  </header>
+
+  <div *ngIf="successMessage" class="alert alert-success alert-dismissible" role="status">
+    <i class="bi bi-check-circle-fill me-2"></i>{{ successMessage }}
+    <button type="button" class="btn-close" aria-label="Đóng" (click)="successMessage = ''"></button>
+  </div>
+  <div *ngIf="errorMessage" class="alert alert-danger alert-dismissible" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ errorMessage }}
+    <button type="button" class="btn-close" aria-label="Đóng" (click)="errorMessage = ''"></button>
+  </div>
+
+  <section class="stats-grid">
+    <article class="stat-card">
+      <div class="stat-icon blue"><i class="bi bi-folder2-open"></i></div>
+      <div><span>Tổng danh mục</span><strong>{{ categories.length }}</strong></div>
+    </article>
+    <article class="stat-card">
+      <div class="stat-icon green"><i class="bi bi-check-circle"></i></div>
+      <div><span>Đang hoạt động</span><strong>{{ activeCount }}</strong></div>
+    </article>
+    <article class="stat-card">
+      <div class="stat-icon gray"><i class="bi bi-eye-slash"></i></div>
+      <div><span>Đang ẩn</span><strong>{{ inactiveCount }}</strong></div>
+    </article>
+  </section>
+
+  <section class="content-card">
+    <div class="toolbar">
+      <label class="search-box">
+        <i class="bi bi-search"></i>
+        <input type="search" [(ngModel)]="searchTerm" placeholder="Tìm theo tên hoặc mô tả..."
+               aria-label="Tìm danh mục" />
+      </label>
+      <select class="status-select" [(ngModel)]="statusFilter" aria-label="Lọc trạng thái">
+        <option value="all">Tất cả trạng thái</option>
+        <option value="active">Hoạt động</option>
+        <option value="inactive">Đã ẩn</option>
+      </select>
+      <button class="btn-refresh" type="button" (click)="loadCategories()" [disabled]="loading" title="Tải lại">
+        <i class="bi bi-arrow-clockwise"></i>
+      </button>
+    </div>
+
+    <div *ngIf="loading" class="loading-state">
+      <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+      <span>Đang tải danh mục...</span>
+    </div>
+
+    <div *ngIf="!loading && filteredCategories.length === 0" class="empty-state">
+      <i class="bi bi-folder-x"></i>
+      <h3>Chưa có danh mục phù hợp</h3>
+      <p>Thử thay đổi từ khóa tìm kiếm hoặc thêm danh mục mới.</p>
+      <button type="button" class="btn-primary-custom" (click)="openCreateModal()">
+        <i class="bi bi-plus-lg"></i> Thêm danh mục
+      </button>
+    </div>
+
+    <div *ngIf="!loading && filteredCategories.length > 0" class="table-responsive">
+      <table class="table category-table align-middle mb-0">
+        <thead>
+          <tr>
+            <th class="number-col">#</th>
+            <th>Mã danh mục</th>
+            <th>Tên danh mục</th>
+            <th>Mô tả</th>
+            <th>Trạng thái</th>
+            <th class="actions-col">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let category of filteredCategories; let i = index; trackBy: trackByCategory">
+            <td class="text-secondary">{{ i + 1 }}</td>
+            <td><span class="category-id">{{ category._id || category.id || '—' }}</span></td>
+            <td><strong class="category-name">{{ category.name }}</strong></td>
+            <td class="description-cell">{{ category.description || 'Chưa có mô tả' }}</td>
+            <td>
+              <span class="status-badge" [class.status-active]="category.status === 'active'"
+                    [class.status-inactive]="category.status !== 'active'">
+                <span class="status-dot"></span>
+                {{ category.status === 'active' ? 'Hoạt động' : 'Đã ẩn' }}
+              </span>
+            </td>
+            <td>
+              <div class="action-buttons">
+                <button type="button" class="btn-action edit" (click)="openEditModal(category)" title="Sửa">
+                  <i class="bi bi-pencil-square"></i><span>Sửa</span>
+                </button>
+                <button type="button" class="btn-action delete" (click)="askDelete(category)" title="Xóa">
+                  <i class="bi bi-trash3"></i><span>Xóa</span>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="table-footer">
+      Hiển thị {{ filteredCategories.length }} / {{ categories.length }} danh mục
+    </footer>
+  </section>
+</div>
+
+<!-- Modal thêm / sửa -->
+<div *ngIf="modalMode" class="modal-backdrop-custom" (click)="closeModal()">
+  <section class="category-modal" role="dialog" aria-modal="true"
+           [attr.aria-label]="modalMode === 'create' ? 'Thêm danh mục' : 'Sửa danh mục'"
+           (click)="$event.stopPropagation()">
+    <header class="modal-header-custom">
+      <div class="modal-heading-icon"><i class="bi" [ngClass]="modalMode === 'create' ? 'bi-folder-plus' : 'bi-pencil-square'"></i></div>
+      <div class="modal-heading-text">
+        <h2>{{ modalMode === 'create' ? 'Thêm danh mục' : 'Sửa danh mục' }}</h2>
+        <p>{{ modalMode === 'create' ? 'Nhập thông tin danh mục mới' : 'Cập nhật thông tin danh mục' }}</p>
+      </div>
+      <button type="button" class="icon-close" aria-label="Đóng" (click)="closeModal()" [disabled]="saving">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </header>
+
+    <form [formGroup]="categoryForm" (ngSubmit)="saveCategory()" novalidate>
+      <div class="modal-body-custom">
+        <div *ngIf="errorMessage" class="alert alert-danger">{{ errorMessage }}</div>
+
+        <div class="form-field" *ngIf="modalMode === 'edit'">
+          <label>Mã danh mục</label>
+          <input class="form-control" [value]="selectedCategory?._id || selectedCategory?.id || ''" disabled />
+        </div>
+
+        <div class="form-field">
+          <label for="category-name">Tên danh mục <span class="required">*</span></label>
+          <input id="category-name" class="form-control" formControlName="name"
+                 placeholder="Ví dụ: Áo thể thao" maxlength="100" />
+          <small class="field-error" *ngIf="categoryForm.controls.name.touched && categoryForm.controls.name.hasError('required')">
+            Vui lòng nhập tên danh mục.
+          </small>
+          <small class="field-error" *ngIf="categoryForm.controls.name.touched && categoryForm.controls.name.hasError('maxlength')">
+            Tên danh mục không được vượt quá 100 ký tự.
+          </small>
+        </div>
+
+        <div class="form-field">
+          <label for="category-description">Mô tả</label>
+          <textarea id="category-description" class="form-control" formControlName="description"
+                    rows="3" maxlength="500" placeholder="Nhập mô tả danh mục (không bắt buộc)..."></textarea>
+          <small class="field-hint">Tối đa 500 ký tự.</small>
+        </div>
+
+        <div class="form-field">
+          <label>Trạng thái</label>
+          <div class="status-options">
+            <label class="radio-option">
+              <input type="radio" formControlName="status" value="active" />
+              <span class="radio-mark"></span> Hoạt động
+            </label>
+            <label class="radio-option">
+              <input type="radio" formControlName="status" value="inactive" />
+              <span class="radio-mark"></span> Ẩn danh mục
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <footer class="modal-footer-custom">
+        <button type="button" class="btn-secondary-custom" (click)="closeModal()" [disabled]="saving">Hủy</button>
+        <button type="submit" class="btn-primary-custom" [disabled]="saving">
+          <span *ngIf="saving" class="spinner-border spinner-border-sm me-2"></span>
+          <i *ngIf="!saving" class="bi" [ngClass]="modalMode === 'create' ? 'bi-check-lg' : 'bi-save'"></i>
+          {{ saving ? 'Đang lưu...' : (modalMode === 'create' ? 'Lưu danh mục' : 'Cập nhật') }}
+        </button>
+      </footer>
+    </form>
+  </section>
+</div>
+
+<!-- Modal xác nhận xóa -->
+<div *ngIf="deleteTarget" class="modal-backdrop-custom" (click)="cancelDelete()">
+  <section class="confirm-modal" role="alertdialog" aria-modal="true"
+           aria-labelledby="delete-title" (click)="$event.stopPropagation()">
+    <div class="confirm-icon"><i class="bi bi-exclamation-lg"></i></div>
+    <h2 id="delete-title">Xác nhận xóa danh mục</h2>
+    <p>Bạn có chắc chắn muốn xóa danh mục <strong>{{ deleteTarget.name }}</strong> không?</p>
+    <p class="confirm-warning">Thao tác này có thể ảnh hưởng đến sản phẩm thuộc danh mục. Hãy kiểm tra quy tắc xóa ở backend trước khi xác nhận.</p>
+    <div class="confirm-actions">
+      <button type="button" class="btn-secondary-custom" (click)="cancelDelete()" [disabled]="deleting">Hủy</button>
+      <button type="button" class="btn-danger-custom" (click)="confirmDelete()" [disabled]="deleting">
+        <span *ngIf="deleting" class="spinner-border spinner-border-sm me-2"></span>
+        <i *ngIf="!deleting" class="bi bi-trash3"></i>
+        {{ deleting ? 'Đang xóa...' : 'Xóa danh mục' }}
+      </button>
+    </div>
+  </section>
+</div>
